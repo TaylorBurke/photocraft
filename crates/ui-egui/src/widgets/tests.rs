@@ -906,6 +906,44 @@ fn dropdown_opens_with_focus_and_arrow_keys_change_the_value() {
     assert_eq!(*h.state(), 0);
 }
 
+/// #9954: once its list closes, a dropdown keeps the keyboard focus and ↑/↓ go on stepping its
+/// value, as in Photoshop, instead of moving the focus to the next control in the panel.
+#[test]
+fn a_closed_dropdown_keeps_focus_and_the_arrow_keys_keep_stepping() {
+    use egui::accesskit::Role;
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut h = Harness::builder().with_size(egui::vec2(300.0, 200.0)).build_ui_state(
+        |ui, selected: &mut usize| {
+            let options = [(0, "RGB"), (1, "Red"), (2, "Green"), (3, "Blue")];
+            super::dropdown(ui, "curves-channel", tl!("Channel"), selected, &options, 120.0);
+            // Another control below it, where egui's arrow-key navigation would move the focus.
+            let _ = ui.button("Auto");
+        },
+        0,
+    );
+    h.get_by_role(Role::ComboBox).click();
+    h.run();
+    h.key_press(egui::Key::ArrowDown);
+    h.run();
+    assert_eq!(*h.state(), 1, "↓ in the open list picks Red");
+    h.key_press(egui::Key::Enter);
+    h.run();
+    assert!(!super::dropdown_list_open(&h.ctx), "↩ closes the list");
+    let focused = h.ctx.memory(|m| m.focused());
+    assert!(focused.is_some(), "the closed dropdown has the focus");
+    for want in [2, 3, 3] {
+        h.key_press(egui::Key::ArrowDown);
+        h.run();
+        assert_eq!(*h.state(), want, "↓ on the closed dropdown steps on, stopping at the last");
+        assert_eq!(h.ctx.memory(|m| m.focused()), focused, "the dropdown keeps the focus");
+    }
+    h.key_press(egui::Key::ArrowUp);
+    h.run();
+    assert_eq!(*h.state(), 2, "↑ steps back");
+    assert!(!super::dropdown_list_open(&h.ctx), "stepping a closed dropdown doesn't open its list");
+}
+
 /// Scrolling rows under the pointer doesn't widen the list: it is as wide as the widest
 /// option hovered from the start (#2607).
 #[test]
