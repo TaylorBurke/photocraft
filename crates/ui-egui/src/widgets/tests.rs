@@ -944,6 +944,38 @@ fn a_closed_dropdown_keeps_focus_and_the_arrow_keys_keep_stepping() {
     assert!(!super::dropdown_list_open(&h.ctx), "stepping a closed dropdown doesn't open its list");
 }
 
+/// A dropdown with tooltips (New Document's and Document Properties' Depth, Camera Raw's Demosaic)
+/// takes the arrow keys as a plain one does: in its open list, and once the list is closed from
+/// the keyboard (#9954).
+#[test]
+fn a_dropdown_with_tooltips_steps_with_the_arrow_keys_open_and_closed() {
+    use egui::accesskit::Role;
+    use egui_kittest::{Harness, kittest::Queryable};
+
+    let mut h = Harness::builder().with_size(egui::vec2(300.0, 200.0)).build_ui_state(
+        |ui, depth: &mut u8| {
+            let options = [(8, "8 bit", "Smallest files"), (16, "16 bit", "More levels"), (32, "32 bit", "Floating point")];
+            super::dropdown_with_tooltips(ui, "depth", tl!("Depth"), depth, &options, 120.0);
+            let _ = ui.button("Create");
+        },
+        8,
+    );
+    h.get_by_role(Role::ComboBox).click();
+    h.run();
+    h.key_press(egui::Key::ArrowDown);
+    h.run();
+    assert_eq!(*h.state(), 16, "↓ in the open list");
+    h.key_press(egui::Key::Enter);
+    h.run();
+    assert!(!super::dropdown_list_open(&h.ctx), "↩ closes the list");
+    let focused = h.ctx.memory(|m| m.focused());
+    assert!(focused.is_some(), "the closed dropdown has the focus");
+    h.key_press(egui::Key::ArrowDown);
+    h.run();
+    assert_eq!(*h.state(), 32, "↓ on the closed dropdown");
+    assert_eq!(h.ctx.memory(|m| m.focused()), focused, "the dropdown keeps the focus");
+}
+
 /// Scrolling rows under the pointer doesn't widen the list: it is as wide as the widest
 /// option hovered from the start (#2607).
 #[test]

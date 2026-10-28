@@ -303,6 +303,9 @@ pub fn dropdown_with_tooltips<T: PartialEq + Clone>(ui: &mut Ui, id: &str, name:
         None => response.response.accessible_name(name),
     };
     press.after(&response);
+    // The arrow keys step it as they do a plain dropdown, open or closed (#9954).
+    let values: Vec<(T, &str)> = options.iter().map(|(v, l, _)| (v.clone(), *l)).collect();
+    changed |= combo_box_arrow_keys(ui, &response, current, &values);
     if let Some((_, _, tip)) = options.iter().find(|(v, _, _)| v == current) {
         response.on_hover_text(tl!(tip));
     }
